@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chatsql</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2e37;
+    --text: #e6e8eb;
+    --muted: #8b93a1;
+    --accent: #e8a33d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 64px 24px;
+  }
+  main {
+    width: 100%;
+    max-width: 640px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  p.sub {
+    color: var(--muted);
+    margin: 0 0 32px;
+    font-size: 15px;
+  }
+  textarea {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 12px 14px;
+    resize: vertical;
+    min-height: 64px;
+  }
+  textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  button {
+    margin-top: 12px;
+    background: var(--accent);
+    color: #1a1204;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+  section {
+    margin-top: 32px;
+  }
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+  pre#sql {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--accent);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  #error {
+    color: #f0776c;
+    font-size: 14px;
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>chatsql</h1>
+  <p class="sub">Ask your database a question in plain English.</p>
+
+  <textarea id="question" placeholder="e.g. Which customer has spent the most money in total?"></textarea>
+  <br>
+  <button id="runBtn">Run</button>
+
+  <div id="error"></div>
+
+  <section id="resultsSection" style="display:none">
+    <h2>Generated SQL</h2>
+    <pre id="sql"></pre>
+
+    <h2 style="margin-top:24px">Results</h2>
+    <table id="resultsTable"></table>
+  </section>
+</main>
+
+<script>
+  const btn = document.getElementById('runBtn');
+  const questionEl = document.getElementById('question');
+  const errorEl = document.getElementById('error');
+  const resultsSection = document.getElementById('resultsSection');
+  const sqlEl = document.getElementById('sql');
+  const tableEl = document.getElementById('resultsTable');
+
+  btn.addEventListener('click', runQuery);
+  questionEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) runQuery();
+  });
+
+  async function runQuery() {
+    const question = questionEl.value.trim();
+    if (!question) return;
+
+    errorEl.textContent = '';
+    resultsSection.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Running…';
+
+    try {
+      const res = await fetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Something went wrong.';
+        return;
+      }
+
+      sqlEl.textContent = data.generatedSql;
+      renderTable(data.results);
+      resultsSection.style.display = 'block';
+    } catch (err) {
+      errorEl.textContent = 'Could not reach the server.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Run';
+    }
+  }
+
+  function renderTable(rows) {
+    tableEl.innerHTML = '';
+    if (!rows || rows.length === 0) {
+      tableEl.innerHTML = '<tr><td>No rows returned.</td></tr>';
+      return;
+    }
+    const columns = Object.keys(rows[0]);
+    const thead = '<tr>' + columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
+    const tbody = rows.map(row =>
+      '<tr>' + columns.map(c => `<td>${row[c]}</td>`).join('') + '</tr>'
+    ).join('');
+    tableEl.innerHTML = thead + tbody;
+  }
+</script>
+</body>
+</html>
