@@ -2,6 +2,9 @@
 
 Ask a MySQL database questions in plain English. A Spring Boot backend reads the live database schema, asks Google's Gemini API to write a SQL query, checks that the query is read-only, runs it, and returns both the SQL and the results. A small browser page is included so you can try it without `curl`.
 
+ ![nl2sql browser UI](docs/nl2sql.jpeg)
+
+
 ## How it works
 
 Each request goes through four steps:
@@ -110,3 +113,5 @@ src/main/resources/
 - Feed SQL errors back to the model for a second attempt
 - Cache the schema
 - Add authentication and a read-only database user
+
+
